@@ -64,6 +64,24 @@ function renderUserPoints(total, medals) {
     progressTextEl.textContent = `${formatPoints(nextMedal.pointsRequired - total)} puntos hasta la próxima medalla`;
 }
 
+// Funcionalidad Extra 2: Mostrar impacto ambiental estimado basado en los puntos
+function renderImpactoAmbiental(totalPuntos) {
+    const impactoContainer = document.getElementById('impacto-ambiental-card');
+    if (!impactoContainer) return;
+
+    // Cálculo estimado: 10 puntos = 1 kg de material reciclado, 50 puntos = 1 árbol salvado
+    const kilosEstimados = (totalPuntos / 10).toFixed(1);
+    const arbolesEquivalentes = (totalPuntos / 50).toFixed(1);
+
+    impactoContainer.innerHTML = `
+        <div class="impacto-content">
+            <h3>🌍 Tu Impacto Ambiental</h3>
+            <p>🌿 Residuos reciclados estimados: <strong>${kilosEstimados} kg</strong></p>
+            <p>🌳 Equivalente en árboles salvados: <strong>${arbolesEquivalentes}</strong></p>
+        </div>
+    `;
+}
+
 async function loadRewards() {
     const grid = document.getElementById('medals-grid');
     const totalEl = document.getElementById('user-points-total');
@@ -87,7 +105,9 @@ async function loadRewards() {
         const user = await apiRequest('/auth/me');
         const records = await apiRequest(`/recycling-records/user/${user.id}`);
         const total = records.reduce((sum, record) => sum + record.pointsEarned, 0);
+        
         renderUserPoints(total, medals);
+        renderImpactoAmbiental(total); // Se ejecuta aquí la funcionalidad extra con el total de puntos
     } catch (error) {
         if (grid) {
             grid.innerHTML = `<p class="medals-status is-error">No se pudo cargar el catálogo: ${error.message}</p>`;

@@ -6,6 +6,31 @@
     <title>EcoPoint</title>
     <link rel="icon" type="image/png" href="./assets/img/simbolo-de-reciclaje.png">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="./manifest.json">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <style>
+      @keyframes pulseMapHighlight {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.7); }
+        50% { transform: scale(1.01); box-shadow: 0 0 0 15px rgba(46, 125, 50, 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); }
+      }
+
+      .map-card-highlight {
+        animation: pulseMapHighlight 1s ease-in-out;
+      }
+    </style>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker registrado', reg))
+            .catch(err => console.log('Error Service Worker', err));
+        });
+      }
+    </script>
 </head>
 
 <body>
@@ -56,11 +81,18 @@
             </div>
         </section>
 
-        <!-- ====== MAPA INTERACTIVO ====== -->
+        <!-- ====== MAPA INTERACTIVO (Funcionalidad Móvil 1: Geolocalización) ====== -->
         <section class="map-section" id="mapa">
             <h2>Encuentra Puntos de Reciclaje Cerca de Ti</h2>
             <div class="map-card">
-                <input type="text" placeholder="Buscar ubicación..." class="search">
+                <div class="search-box-wrapper" style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+                    <input type="text" placeholder="Buscar ubicación..." class="search" style="flex: 1; min-width: 200px;">
+                    <!-- Botón coherente con clases globales de la app -->
+                    <button type="button" id="btn-geolocation" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <span>📍</span> Usar mi ubicación
+                    </button>
+                </div>
+
                 <div class="filters">
                     <a href="#" class="filter active">Plástico</a>
                     <a href="#" class="filter">Papel</a>
@@ -68,12 +100,7 @@
                     <a href="#" class="filter">Electrónica</a>
                 </div>
                 <div class="map-container">
-                    <iframe
-                        class="map-iframe"
-                        loading="lazy"
-                        referrerpolicy="no-referrer-when-downgrade"
-                        src="https://www.google.com/maps?q=Bogot%C3%A1%20Colombia&output=embed">
-                    </iframe>
+                    <div id="leaflet-map" style="width: 100%; height: 100%; min-height: 400px; border-radius: 8px;"></div>
                 </div>
                 <div class="points-panel">
                     <h3>Puntos de reciclaje en la plataforma</h3>
@@ -311,6 +338,14 @@
                             <label for="register-password-confirm">Confirmar contraseña</label>
                             <input type="password" id="register-password-confirm" name="passwordConfirm" placeholder="Repite tu contraseña" required minlength="6" autocomplete="new-password">
                         </div>
+                        
+                        <!-- Funcionalidad Móvil 2: Captura de Foto con Cámara Nativa -->
+                        <div class="form-group" style="background: #f4f9f4; padding: 12px; border-radius: 8px; border: 1px dashed #2e7d32;">
+                            <label for="register-photo" style="font-weight: bold; color: #2e7d32; display: block; margin-bottom: 5px;">📷 Evidencia fotográfica / Perfil</label>
+                            <p style="font-size: 0.8rem; color: #666; margin-bottom: 8px;">Toma una foto de tu punto de reciclaje o sube tu imagen desde el celular.</p>
+                            <input type="file" id="register-photo" name="photo" accept="image/*" capture="environment" style="width: 100%;">
+                        </div>
+
                         <button type="submit" class="btn btn-submit">Crear cuenta</button>
                         <p class="form-status" id="register-status" aria-live="polite"></p>
                     </form>
@@ -358,7 +393,7 @@
             <div class="footer-bottom">
                 <p>&copy; 2026 EcoPoint - Hecho con 🌱 para el planeta</p>
             </div>
-        </footer>
+    </footer>
 
 </body>
 <script>
@@ -386,7 +421,6 @@
   filterLinks.forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
-
       filterLinks.forEach(l => l.classList.remove('active'));
       link.classList.add('active');
     });
@@ -437,6 +471,60 @@
   });
 
   updateBreadcrumb(window.location.hash || '#inicio');
+
+  // Inicialización de Leaflet Map
+  let leafletMap;
+  let userMarker;
+
+  function initLeafletMap() {
+    const mapElement = document.getElementById('leaflet-map');
+    if (!mapElement) return;
+
+    leafletMap = L.map('leaflet-map').setView([4.60971, -74.08175], 13); // Bogotá por defecto
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(leafletMap);
+  }
+
+  // Lógica de Geolocalización con scroll suave, pulso y vuelo fluido en Leaflet
+  const btnGeolocation = document.getElementById('btn-geolocation');
+  const mapCard = document.querySelector('.map-card');
+
+  if (btnGeolocation) {
+    btnGeolocation.addEventListener('click', () => {
+      if (!navigator.geolocation || !leafletMap) return;
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const pos = [lat, lng];
+
+          // Vuelo fluido nativo en Leaflet
+          leafletMap.flyTo(pos, 15, { animate: true, duration: 1.5 });
+
+          // Actualizar o crear marcador de usuario
+          if (userMarker) {
+            userMarker.setLatLng(pos);
+          } else {
+            userMarker = L.marker(pos).addTo(leafletMap).bindPopup('¡Estás aquí!').openPopup();
+          }
+          
+          // Desplazamiento suave forzado al inicio de la tarjeta del mapa
+          if (mapCard) {
+            mapCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            mapCard.classList.remove('map-card-highlight');
+            void mapCard.offsetWidth; // Reflow forzado para reiniciar animación
+            mapCard.classList.add('map-card-highlight');
+          }
+        },
+        (error) => {
+          console.error('Error de geolocalización:', error);
+        }
+      );
+    });
+  }
 </script>
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
@@ -445,6 +533,7 @@
 <script src="js/rewards.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    initLeafletMap();
     initAuth();
     initPoints();
     initRewards();
