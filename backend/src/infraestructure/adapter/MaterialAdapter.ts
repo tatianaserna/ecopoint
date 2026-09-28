@@ -2,13 +2,13 @@ import { Repository } from "typeorm";
 import { Material as MaterialDomain } from "../../domain/Material";
 import { Material as MaterialEntity } from "../entities/Material";
 import { MaterialPort } from "../../domain/port/MaterialPort";
-import { AppDataSource } from "../config/data-base";
+import { AppDataSource, connectToDatabase } from "../config/data-base";
 
 export class MaterialAdapter implements MaterialPort {
-    private materialRepository: Repository<MaterialEntity>;
-
-    constructor() {
-        this.materialRepository = AppDataSource.getRepository(MaterialEntity);
+    // Método asíncrono para garantizar la conexión a la base de datos antes de obtener el repositorio
+    private async getRepository(): Promise<Repository<MaterialEntity>> {
+        await connectToDatabase();
+        return AppDataSource.getRepository(MaterialEntity);
     }
 
     private toDomain(entity: MaterialEntity): MaterialDomain {
@@ -30,17 +30,19 @@ export class MaterialAdapter implements MaterialPort {
 
     async createMaterial(material: Omit<MaterialDomain, "id">): Promise<number> {
         try {
-            const saved = await this.materialRepository.save(this.toEntity(material));
+            const repo = await this.getRepository();
+            const saved = await repo.save(this.toEntity(material));
             return saved.id_material;
         } catch (error) {
             console.error("Error creating material:", error);
-            throw new Error("Failed to create material");
+            throw error;
         }
     }
 
     async updateMaterial(id: number, material: Partial<MaterialDomain>): Promise<boolean> {
         try {
-            const existing = await this.materialRepository.findOne({ where: { id_material: id } });
+            const repo = await this.getRepository();
+            const existing = await repo.findOne({ where: { id_material: id } });
             if (!existing) return false;
 
             Object.assign(existing, {
@@ -49,39 +51,58 @@ export class MaterialAdapter implements MaterialPort {
                 status_material: material.status ?? existing.status_material,
             });
 
-            await this.materialRepository.save(existing);
+            await repo.save(existing);
             return true;
         } catch (error) {
             console.error("Error updating material:", error);
-            throw new Error("Failed to update material");
+            throw error;
         }
     }
 
     async deleteMaterial(id: number): Promise<boolean> {
         try {
-            const existing = await this.materialRepository.findOne({ where: { id_material: id } });
+            const repo = await this.getRepository();
+            const existing = await repo.findOne({ where: { id_material: id } });
             if (!existing) return false;
             Object.assign(existing, { status_material: 0 });
-            await this.materialRepository.save(existing);
+            await repo.save(existing);
             return true;
         } catch (error) {
             console.error("Error deleting material:", error);
-            throw new Error("Failed to delete material");
+            throw error;
         }
     }
 
     async getMaterialById(id: number): Promise<MaterialDomain | null> {
-        const material = await this.materialRepository.findOne({ where: { id_material: id } });
-        return material ? this.toDomain(material) : null;
+        try {
+            const repo = await this.getRepository();
+            const material = await repo.findOne({ where: { id_material: id } });
+            return material ? this.toDomain(material) : null;
+        } catch (error) {
+            console.error("Error fetching material by ID:", error);
+            throw error;
+        }
     }
 
     async getMaterialByName(name: string): Promise<MaterialDomain | null> {
-        const material = await this.materialRepository.findOne({ where: { name_material: name } });
-        return material ? this.toDomain(material) : null;
+        try {
+            const repo = await this.getRepository();
+            const material = await repo.findOne({ where: { name_material: name } });
+            return material ? this.toDomain(material) : null;
+        } catch (error) {
+            console.error("Error fetching material by name:", error);
+            throw error;
+        }
     }
 
     async getAllMaterials(): Promise<MaterialDomain[]> {
-        const materials = await this.materialRepository.find({ where: { status_material: 1 } });
-        return materials.map((m) => this.toDomain(m));
+        try {
+            const repo = await this.getRepository();
+            const materials = await repo.find({ where: { status_material: 1 } });
+            return materials.map((m) => this.toDomain(m));
+        } catch (error) {
+            console.error("Error fetching all materials:", error);
+            throw error;
+        }
     }
 }

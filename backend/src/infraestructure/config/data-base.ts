@@ -1,5 +1,6 @@
+import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import dotenv from 'dotenv';
+import pg from 'pg';
 import { User } from '../entities/User';
 import { Role } from '../entities/Role';
 import { Material } from '../entities/Material';
@@ -10,30 +11,36 @@ import { UserMedal } from '../entities/UserMedal';
 import { AuthSession } from '../entities/AuthSession';
 import envs from './environment-vars';
 
-dotenv.config();
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Garantiza que el empaquetador de Vercel mantenga la referencia de las clases de entidades
+const registeredEntities = [
+    Role,
+    User,
+    AuthSession,
+    Material,
+    RecyclingPoint,
+    RecyclingRecord,
+    Medal,
+    UserMedal,
+];
 
 export const AppDataSource = new DataSource({
     type: 'postgres',
+    driver: pg,
     host: envs.DB_HOST,
-    port: Number(envs.DB_PORT),
+    port: envs.DB_PORT,
     username: envs.DB_USER,
     password: envs.DB_PASSWORD,
     database: envs.DB_NAME,
     synchronize: true,
-    logging: true,
-    entities: [
-        Role,
-        User,
-        AuthSession,
-        Material,
-        RecyclingPoint,
-        RecyclingRecord,
-        Medal,
-        UserMedal,
-    ],
+    logging: !isProduction,
+    ssl: isProduction ? { rejectUnauthorized: false } : false,
+    extra: isProduction ? { ssl: { rejectUnauthorized: false } } : {},
+    entities: registeredEntities,
 });
 
-async function seedInitialData() {
+export async function seedInitialData() {
     const roleRepo = AppDataSource.getRepository(Role);
     const roleCount = await roleRepo.count();
     if (roleCount === 0) {
@@ -47,7 +54,7 @@ async function seedInitialData() {
     }
 
     const materialRepo = AppDataSource.getRepository(Material);
-    if (await materialRepo.count() === 0) {
+    if ((await materialRepo.count()) === 0) {
         await materialRepo.save([
             { name_material: 'Plastico', category_material: 'Envases', status_material: 1 },
             { name_material: 'Papel y carton', category_material: 'Papel', status_material: 1 },
@@ -57,7 +64,7 @@ async function seedInitialData() {
     }
 
     const medalRepo = AppDataSource.getRepository(Medal);
-    if (await medalRepo.count() === 0) {
+    if ((await medalRepo.count()) === 0) {
         await medalRepo.save([
             { name_medal: 'Primera reciclada', points_required: 50, status_medal: 1 },
             { name_medal: 'Reciclador activo', points_required: 200, status_medal: 1 },
@@ -68,11 +75,12 @@ async function seedInitialData() {
 
 export const connectToDatabase = async () => {
     try {
-        await AppDataSource.initialize();
-        await seedInitialData();
-        console.log('Database connection established successfully.');
+        if (!AppDataSource.isInitialized) {
+            await AppDataSource.initialize();
+            console.log('Database connection established successfully.');
+        }
     } catch (error) {
         console.error('Error connecting to database:', error);
-        process.exit(1);
+        throw error;
     }
-}
+};

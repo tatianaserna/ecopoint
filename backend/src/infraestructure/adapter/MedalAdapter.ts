@@ -2,13 +2,13 @@ import { Repository } from "typeorm";
 import { Medal as MedalDomain } from "../../domain/Medal";
 import { Medal as MedalEntity } from "../entities/Medal";
 import { MedalPort } from "../../domain/port/MedalPort";
-import { AppDataSource } from "../config/data-base";
+import { AppDataSource, connectToDatabase } from "../config/data-base";
 
 export class MedalAdapter implements MedalPort {
-    private medalRepository: Repository<MedalEntity>;
-
-    constructor() {
-        this.medalRepository = AppDataSource.getRepository(MedalEntity);
+    // Método asíncrono que garantiza la conexión antes de obtener el repositorio
+    private async getRepository(): Promise<Repository<MedalEntity>> {
+        await connectToDatabase();
+        return AppDataSource.getRepository(MedalEntity);
     }
 
     private toDomain(entity: MedalEntity): MedalDomain {
@@ -30,17 +30,19 @@ export class MedalAdapter implements MedalPort {
 
     async createMedal(medal: Omit<MedalDomain, "id">): Promise<number> {
         try {
-            const saved = await this.medalRepository.save(this.toEntity(medal));
+            const repo = await this.getRepository();
+            const saved = await repo.save(this.toEntity(medal));
             return saved.id_medal;
         } catch (error) {
             console.error("Error creating medal:", error);
-            throw new Error("Failed to create medal");
+            throw error;
         }
     }
 
     async updateMedal(id: number, medal: Partial<MedalDomain>): Promise<boolean> {
         try {
-            const existing = await this.medalRepository.findOne({ where: { id_medal: id } });
+            const repo = await this.getRepository();
+            const existing = await repo.findOne({ where: { id_medal: id } });
             if (!existing) return false;
 
             Object.assign(existing, {
@@ -49,39 +51,58 @@ export class MedalAdapter implements MedalPort {
                 status_medal: medal.status ?? existing.status_medal,
             });
 
-            await this.medalRepository.save(existing);
+            await repo.save(existing);
             return true;
         } catch (error) {
             console.error("Error updating medal:", error);
-            throw new Error("Failed to update medal");
+            throw error;
         }
     }
 
     async deleteMedal(id: number): Promise<boolean> {
         try {
-            const existing = await this.medalRepository.findOne({ where: { id_medal: id } });
+            const repo = await this.getRepository();
+            const existing = await repo.findOne({ where: { id_medal: id } });
             if (!existing) return false;
             Object.assign(existing, { status_medal: 0 });
-            await this.medalRepository.save(existing);
+            await repo.save(existing);
             return true;
         } catch (error) {
             console.error("Error deleting medal:", error);
-            throw new Error("Failed to delete medal");
+            throw error;
         }
     }
 
     async getMedalById(id: number): Promise<MedalDomain | null> {
-        const medal = await this.medalRepository.findOne({ where: { id_medal: id } });
-        return medal ? this.toDomain(medal) : null;
+        try {
+            const repo = await this.getRepository();
+            const medal = await repo.findOne({ where: { id_medal: id } });
+            return medal ? this.toDomain(medal) : null;
+        } catch (error) {
+            console.error("Error fetching medal by ID:", error);
+            throw error;
+        }
     }
 
     async getMedalByName(name: string): Promise<MedalDomain | null> {
-        const medal = await this.medalRepository.findOne({ where: { name_medal: name } });
-        return medal ? this.toDomain(medal) : null;
+        try {
+            const repo = await this.getRepository();
+            const medal = await repo.findOne({ where: { name_medal: name } });
+            return medal ? this.toDomain(medal) : null;
+        } catch (error) {
+            console.error("Error fetching medal by name:", error);
+            throw error;
+        }
     }
 
     async getAllMedals(): Promise<MedalDomain[]> {
-        const medals = await this.medalRepository.find({ where: { status_medal: 1 } });
-        return medals.map((m) => this.toDomain(m));
+        try {
+            const repo = await this.getRepository();
+            const medals = await repo.find({ where: { status_medal: 1 } });
+            return medals.map((m) => this.toDomain(m));
+        } catch (error) {
+            console.error("Error fetching all medals:", error);
+            throw error;
+        }
     }
 }

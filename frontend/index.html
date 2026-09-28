@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EcoPoint</title>
     <link rel="icon" type="image/png" href="./assets/img/simbolo-de-reciclaje.png">
     <link rel="stylesheet" href="css/style.css">
@@ -50,6 +51,7 @@
             <a href="#mapa">Mapa</a>
             <a href="#guia">Guía</a>
             <a href="#comunidad">Comunidad</a>
+            <a href="#evidencia">Evidencia</a>
             <a href="#impacto">ODS</a>
             <a href="#registro" id="nav-profile">Mi Perfil</a>
         </nav>
@@ -264,6 +266,42 @@
             </div>
         </section>
 
+        <!-- ====== SECCIÓN: REPORTAR / SUBIR EVIDENCIA DE RECICLAJE ====== -->
+        <section class="evidence-section" id="evidencia" style="padding: 40px 20px; max-width: 900px; margin: 0 auto;">
+            <div class="map-card" style="padding: 24px;">
+                <span class="form-tag" style="display:inline-block; background:#e8f5e9; color:#2e7d32; padding:4px 10px; border-radius:12px; font-size:0.8rem; font-weight:bold; margin-bottom:10px;">Acción Ecológica</span>
+                <h2>Sube evidencia de reciclaje</h2>
+                <p style="color: #555; margin-bottom: 20px;">Toma una foto de los materiales que depositaste o entregaste en el punto de acopio para acumular puntos verificados.</p>
+
+                <form id="evidence-form" class="eco-form" novalidate>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="evidence-material" style="display:block; font-weight:bold; margin-bottom:6px;">Tipo de material</label>
+                        <select id="evidence-material" name="material" class="search" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc;">
+                            <option value="plástico">Plástico (PET, PE)</option>
+                            <option value="papel">Papel y Cartón</option>
+                            <option value="vidrio">Vidrio</option>
+                            <option value="electrónica">Residuos Electrónicos (RAEE)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="background: #f4f9f4; padding: 16px; border-radius: 8px; border: 1px dashed #2e7d32; margin-bottom: 16px;">
+                        <label for="evidence-photo" style="font-weight: bold; color: #2e7d32; display: block; margin-bottom: 5px;">📷 Evidencia fotográfica</label>
+                        <p id="evidence-photo-hint" style="font-size: 0.8rem; color: #666; margin-bottom: 8px;">Usa la cámara trasera de tu celular o selecciona una imagen de la galería.</p>
+                        <input type="file" id="evidence-photo" name="photo" accept="image/*" capture="environment" style="width: 100%;" required>
+                        
+                        <!-- Contenedor de previsualización -->
+                        <div id="evidence-preview-box" style="display: none; margin-top: 12px; text-align: center; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
+                            <img id="evidence-preview-img" src="" alt="Previsualización de la evidencia" style="max-width: 100%; max-height: 220px; object-fit: contain; border-radius: 4px; display: block; margin: 0 auto 10px auto;" />
+                            <button type="button" id="btn-remove-evidence-photo" class="btn" style="background: #d32f2f; color: white; padding: 6px 12px; font-size: 0.8rem; border-radius: 4px; border: none; cursor: pointer;">Quitar foto</button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width:100%;">Registrar entrega y ganar puntos</button>
+                    <p class="form-status" id="evidence-status" aria-live="polite" style="margin-top: 10px;"></p>
+                </form>
+            </div>
+        </section>
+
         <section class="impact-section" id="impacto">
             <div class="impact-heading">
                 <span class="impact-tag">ODS 12 + ODS 11</span>
@@ -339,13 +377,6 @@
                             <input type="password" id="register-password-confirm" name="passwordConfirm" placeholder="Repite tu contraseña" required minlength="6" autocomplete="new-password">
                         </div>
                         
-                        <!-- Funcionalidad Móvil 2: Captura de Foto con Cámara Nativa -->
-                        <div class="form-group" style="background: #f4f9f4; padding: 12px; border-radius: 8px; border: 1px dashed #2e7d32;">
-                            <label for="register-photo" style="font-weight: bold; color: #2e7d32; display: block; margin-bottom: 5px;">📷 Evidencia fotográfica / Perfil</label>
-                            <p style="font-size: 0.8rem; color: #666; margin-bottom: 8px;">Toma una foto de tu punto de reciclaje o sube tu imagen desde el celular.</p>
-                            <input type="file" id="register-photo" name="photo" accept="image/*" capture="environment" style="width: 100%;">
-                        </div>
-
                         <button type="submit" class="btn btn-submit">Crear cuenta</button>
                         <p class="form-status" id="register-status" aria-live="polite"></p>
                     </form>
@@ -395,148 +426,203 @@
             </div>
     </footer>
 
-</body>
-<script>
-  const filterLinks = document.querySelectorAll('.filters .filter');
-  const guideCards = document.querySelectorAll('.guide-card');
-  const guideModal = document.getElementById('guide-modal');
-  const guideModalTitle = document.getElementById('guide-modal-title');
-  const guideModalText = document.getElementById('guide-modal-text');
-  const guideModalClosers = document.querySelectorAll('[data-close-modal]');
-  const breadcrumbCurrent = document.getElementById('breadcrumb-current');
-  const breadcrumbMap = {
-    '#inicio': 'EcoPoint',
-    '#mapa': 'Mapa',
-    '#guia': 'Guía de Reciclaje',
-    '#comunidad': 'Comunidad',
-    '#impacto': 'ODS',
-    '#registro': 'Registro',
-    '#contacto': 'Contacto'
-  };
+    <script>
+      // Función para detectar si la solicitud viene de un dispositivo móvil
+      const isMobileDevice = () => {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+          || window.innerWidth <= 768;
+      };
 
-  const updateBreadcrumb = (hash) => {
-    breadcrumbCurrent.textContent = breadcrumbMap[hash] || 'EcoPoint';
-  };
+      const filterLinks = document.querySelectorAll('.filters .filter');
+      const guideCards = document.querySelectorAll('.guide-card');
+      const guideModal = document.getElementById('guide-modal');
+      const guideModalTitle = document.getElementById('guide-modal-title');
+      const guideModalText = document.getElementById('guide-modal-text');
+      const guideModalClosers = document.querySelectorAll('[data-close-modal]');
+      const breadcrumbCurrent = document.getElementById('breadcrumb-current');
+      const breadcrumbMap = {
+        '#inicio': 'EcoPoint',
+        '#mapa': 'Mapa',
+        '#guia': 'Guía de Reciclaje',
+        '#comunidad': 'Comunidad',
+        '#evidencia': 'Evidencia',
+        '#impacto': 'ODS',
+        '#registro': 'Registro',
+        '#contacto': 'Contacto'
+      };
 
-  filterLinks.forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      filterLinks.forEach(l => l.classList.remove('active'));
-      link.classList.add('active');
-    });
-  });
+      const updateBreadcrumb = (hash) => {
+        breadcrumbCurrent.textContent = breadcrumbMap[hash] || 'EcoPoint';
+      };
 
-  document.querySelectorAll('header nav a, .logo-link, #auth-btn, footer a, .hero-buttons a').forEach(link => {
-    link.addEventListener('click', () => {
-      updateBreadcrumb(link.getAttribute('href'));
-    });
-  });
+      filterLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          filterLinks.forEach(l => l.classList.remove('active'));
+          link.classList.add('active');
+        });
+      });
 
-  const openGuideModal = (card) => {
-    guideModalTitle.textContent = card.dataset.guideTitle;
-    guideModalText.textContent = card.dataset.guideText;
-    guideModal.classList.add('is-open');
-    guideModal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
-  };
+      document.querySelectorAll('header nav a, .logo-link, #auth-btn, footer a, .hero-buttons a').forEach(link => {
+        link.addEventListener('click', () => {
+          updateBreadcrumb(link.getAttribute('href'));
+        });
+      });
 
-  const closeGuideModal = () => {
-    guideModal.classList.remove('is-open');
-    guideModal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('modal-open');
-  };
+      const openGuideModal = (card) => {
+        guideModalTitle.textContent = card.dataset.guideTitle;
+        guideModalText.textContent = card.dataset.guideText;
+        guideModal.classList.add('is-open');
+        guideModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+      };
 
-  guideCards.forEach(card => {
-    card.addEventListener('click', () => openGuideModal(card));
-    card.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        openGuideModal(card);
-      }
-    });
-  });
+      const closeGuideModal = () => {
+        guideModal.classList.remove('is-open');
+        guideModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+      };
 
-  guideModalClosers.forEach(element => {
-    element.addEventListener('click', closeGuideModal);
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && guideModal.classList.contains('is-open')) {
-      closeGuideModal();
-    }
-  });
-
-  window.addEventListener('hashchange', () => {
-    updateBreadcrumb(window.location.hash);
-  });
-
-  updateBreadcrumb(window.location.hash || '#inicio');
-
-  // Inicialización de Leaflet Map
-  let leafletMap;
-  let userMarker;
-
-  function initLeafletMap() {
-    const mapElement = document.getElementById('leaflet-map');
-    if (!mapElement) return;
-
-    leafletMap = L.map('leaflet-map').setView([4.60971, -74.08175], 13); // Bogotá por defecto
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(leafletMap);
-  }
-
-  // Lógica de Geolocalización con scroll suave, pulso y vuelo fluido en Leaflet
-  const btnGeolocation = document.getElementById('btn-geolocation');
-  const mapCard = document.querySelector('.map-card');
-
-  if (btnGeolocation) {
-    btnGeolocation.addEventListener('click', () => {
-      if (!navigator.geolocation || !leafletMap) return;
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const pos = [lat, lng];
-
-          // Vuelo fluido nativo en Leaflet
-          leafletMap.flyTo(pos, 15, { animate: true, duration: 1.5 });
-
-          // Actualizar o crear marcador de usuario
-          if (userMarker) {
-            userMarker.setLatLng(pos);
-          } else {
-            userMarker = L.marker(pos).addTo(leafletMap).bindPopup('¡Estás aquí!').openPopup();
+      guideCards.forEach(card => {
+        card.addEventListener('click', () => openGuideModal(card));
+        card.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openGuideModal(card);
           }
-          
-          // Desplazamiento suave forzado al inicio de la tarjeta del mapa
-          if (mapCard) {
-            mapCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            mapCard.classList.remove('map-card-highlight');
-            void mapCard.offsetWidth; // Reflow forzado para reiniciar animación
-            mapCard.classList.add('map-card-highlight');
-          }
-        },
-        (error) => {
-          console.error('Error de geolocalización:', error);
+        });
+      });
+
+      guideModalClosers.forEach(element => {
+        element.addEventListener('click', closeGuideModal);
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && guideModal.classList.contains('is-open')) {
+          closeGuideModal();
         }
-      );
-    });
-  }
-</script>
-<script src="js/config.js"></script>
-<script src="js/api.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/points.js"></script>
-<script src="js/rewards.js"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    initLeafletMap();
-    initAuth();
-    initPoints();
-    initRewards();
-  });
-</script>
+      });
+
+      window.addEventListener('hashchange', () => {
+        updateBreadcrumb(window.location.hash);
+      });
+
+      updateBreadcrumb(window.location.hash || '#inicio');
+
+      // Inicialización de Leaflet Map
+      let leafletMap;
+      let userMarker;
+
+      function initLeafletMap() {
+        const mapElement = document.getElementById('leaflet-map');
+        if (!mapElement) return;
+
+        leafletMap = L.map('leaflet-map').setView([4.60971, -74.08175], 13); // Bogotá por defecto
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(leafletMap);
+      }
+
+      // Lógica de Geolocalización (Restringida únicamente a móviles)
+      const btnGeolocation = document.getElementById('btn-geolocation');
+      const mapCard = document.querySelector('.map-card');
+
+      if (btnGeolocation) {
+        if (!isMobileDevice()) {
+          // Si no es móvil (es escritorio/PC), se oculta el botón de geolocalización
+          btnGeolocation.style.display = 'none';
+        } else {
+          // Si es un dispositivo móvil, se habilita la geolocalización por GPS
+          btnGeolocation.addEventListener('click', () => {
+            if (!navigator.geolocation || !leafletMap) return;
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const pos = [lat, lng];
+
+                leafletMap.flyTo(pos, 15, { animate: true, duration: 1.5 });
+
+                if (userMarker) {
+                  userMarker.setLatLng(pos);
+                } else {
+                  userMarker = L.marker(pos).addTo(leafletMap).bindPopup('¡Estás aquí!').openPopup();
+                }
+                
+                if (mapCard) {
+                  mapCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  mapCard.classList.remove('map-card-highlight');
+                  void mapCard.offsetWidth;
+                  mapCard.classList.add('map-card-highlight');
+                }
+              },
+              (error) => {
+                console.error('Error de geolocalización:', error);
+              }
+            );
+          });
+        }
+      }
+
+      // Lógica de Cámara/Evidencia (Adaptada para móviles)
+      const photoInput = document.getElementById('evidence-photo');
+      const photoHint = document.getElementById('evidence-photo-hint');
+      const previewBox = document.getElementById('evidence-preview-box');
+      const previewImg = document.getElementById('evidence-preview-img');
+      const btnRemovePhoto = document.getElementById('btn-remove-evidence-photo');
+
+      if (photoInput) {
+        if (!isMobileDevice()) {
+          // En escritorio se elimina el atributo capture para no forzar la cámara trasera y se actualiza el texto explicativo
+          photoInput.removeAttribute('capture');
+          if (photoHint) {
+            photoHint.textContent = 'Selecciona una imagen desde el almacenamiento de tu equipo.';
+          }
+        }
+
+        photoInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+              previewImg.src = evt.target.result;
+              previewBox.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+          } else {
+            previewBox.style.display = 'none';
+            previewImg.src = '';
+          }
+        });
+      }
+
+      if (btnRemovePhoto) {
+        btnRemovePhoto.addEventListener('click', () => {
+          photoInput.value = '';
+          previewBox.style.display = 'none';
+          previewImg.src = '';
+        });
+      }
+    </script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/points.js"></script>
+    <script src="js/rewards.js"></script>
+    <script src="js/evidence.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        initLeafletMap();
+        initAuth();
+        initPoints();
+        initRewards();
+        if (typeof initEvidenceForm === 'function') {
+          initEvidenceForm();
+        }
+      });
+    </script>
+</body>
+
 </html>

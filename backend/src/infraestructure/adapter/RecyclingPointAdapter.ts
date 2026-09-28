@@ -3,15 +3,18 @@ import { RecyclingPoint as RecyclingPointDomain } from "../../domain/RecyclingPo
 import { RecyclingPoint as RecyclingPointEntity } from "../entities/RecyclingPoint";
 import { Material } from "../entities/Material";
 import { RecyclingPointPort } from "../../domain/port/RecyclingPointPort";
-import { AppDataSource } from "../config/data-base";
+import { AppDataSource, connectToDatabase } from "../config/data-base";
 
 export class RecyclingPointAdapter implements RecyclingPointPort {
-    private pointRepository: Repository<RecyclingPointEntity>;
-    private materialRepository: Repository<Material>;
+    // Métodos asíncronos para garantizar la conexión antes de obtener los repositorios
+    private async getPointRepository(): Promise<Repository<RecyclingPointEntity>> {
+        await connectToDatabase();
+        return AppDataSource.getRepository(RecyclingPointEntity);
+    }
 
-    constructor() {
-        this.pointRepository = AppDataSource.getRepository(RecyclingPointEntity);
-        this.materialRepository = AppDataSource.getRepository(Material);
+    private async getMaterialRepository(): Promise<Repository<Material>> {
+        await connectToDatabase();
+        return AppDataSource.getRepository(Material);
     }
 
     private toDomain(pointEntity: RecyclingPointEntity): RecyclingPointDomain {
@@ -38,7 +41,8 @@ export class RecyclingPointAdapter implements RecyclingPointPort {
     }
 
     async materialExists(materialId: number): Promise<boolean> {
-        const material = await this.materialRepository.findOne({
+        const repo = await this.getMaterialRepository();
+        const material = await repo.findOne({
             where: { id_material: materialId, status_material: 1 },
         });
         return material !== null;
@@ -46,18 +50,20 @@ export class RecyclingPointAdapter implements RecyclingPointPort {
 
     async createPoint(point: Omit<RecyclingPointDomain, "id">): Promise<number> {
         try {
+            const repo = await this.getPointRepository();
             const newPoint = this.toEntity(point);
-            const savedPoint = await this.pointRepository.save(newPoint);
+            const savedPoint = await repo.save(newPoint);
             return savedPoint.id_point;
         } catch (error) {
             console.error("Error creating recycling point:", error);
-            throw new Error("Failed to create recycling point");
+            throw error;
         }
     }
 
     async updatePoint(id: number, point: Partial<RecyclingPointDomain>): Promise<boolean> {
         try {
-            const existingPoint = await this.pointRepository.findOne({ where: { id_point: id } });
+            const repo = await this.getPointRepository();
+            const existingPoint = await repo.findOne({ where: { id_point: id } });
             if (!existingPoint) return false;
 
             Object.assign(existingPoint, {
@@ -71,45 +77,48 @@ export class RecyclingPointAdapter implements RecyclingPointPort {
                 status_point: point.status ?? existingPoint.status_point,
             });
 
-            await this.pointRepository.save(existingPoint);
+            await repo.save(existingPoint);
             return true;
         } catch (error) {
             console.error("Error updating recycling point:", error);
-            throw new Error("Failed to update recycling point");
+            throw error;
         }
     }
 
     async deletePoint(id: number): Promise<boolean> {
         try {
-            const existingPoint = await this.pointRepository.findOne({ where: { id_point: id } });
+            const repo = await this.getPointRepository();
+            const existingPoint = await repo.findOne({ where: { id_point: id } });
             if (!existingPoint) return false;
 
             Object.assign(existingPoint, { status_point: 0 });
-            await this.pointRepository.save(existingPoint);
+            await repo.save(existingPoint);
             return true;
         } catch (error) {
             console.error("Error deleting recycling point:", error);
-            throw new Error("Failed to delete recycling point");
+            throw error;
         }
     }
 
     async getPointById(id: number): Promise<RecyclingPointDomain | null> {
         try {
-            const point = await this.pointRepository.findOne({ where: { id_point: id } });
+            const repo = await this.getPointRepository();
+            const point = await repo.findOne({ where: { id_point: id } });
             return point ? this.toDomain(point) : null;
         } catch (error) {
             console.error("Error fetching recycling point by ID:", error);
-            throw new Error("Failed to fetch recycling point by ID");
+            throw error;
         }
     }
 
     async getAllPoints(): Promise<RecyclingPointDomain[]> {
         try {
-            const points = await this.pointRepository.find({ where: { status_point: 1 } });
+            const repo = await this.getPointRepository();
+            const points = await repo.find({ where: { status_point: 1 } });
             return points.map((point) => this.toDomain(point));
         } catch (error) {
             console.error("Error fetching all recycling points:", error);
-            throw new Error("Failed to fetch all recycling points");
+            throw error;
         }
     }
 }

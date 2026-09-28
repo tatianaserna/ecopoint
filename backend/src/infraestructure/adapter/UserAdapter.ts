@@ -2,14 +2,14 @@ import { Repository } from "typeorm";
 import { User, User as UserDomain } from "../../domain/User";
 import { User as UserEntity } from "../entities/User";
 import { UserPort } from "../../domain/port/UserPort";
-import { AppDataSource } from "../config/data-base";
+import { AppDataSource, connectToDatabase } from "../config/data-base";
 
 export class UserAdapter implements UserPort {
 
-    private userRepository: Repository<UserEntity>
-
-    constructor() {
-        this.userRepository = AppDataSource.getRepository(UserEntity);
+    // Método asíncrono que garantiza la conexión antes de obtener el repositorio
+    private async getRepository(): Promise<Repository<UserEntity>> {
+        await connectToDatabase();
+        return AppDataSource.getRepository(UserEntity);
     }
 
     // Transformar UserEntity a UserDomain
@@ -21,7 +21,7 @@ export class UserAdapter implements UserPort {
             password: userEntity.password_user,
             status: userEntity.status_user,
             roleId: userEntity.role_id,
-        }
+        };
     }
 
     private toEntity(userDomain: Omit<UserDomain, "id">): UserEntity {
@@ -36,21 +36,22 @@ export class UserAdapter implements UserPort {
 
     async createUser(user: Omit<UserDomain, "id">): Promise<number> {
         try {
+            const repo = await this.getRepository();
             const newUser = this.toEntity(user);
-            const savedUser = await this.userRepository.save(newUser);
+            const savedUser = await repo.save(newUser);
             return savedUser.id_user;
         } catch (error) {
             console.error("Error creating user:", error);
-            throw new Error("Failed to create user");
+            throw error;
         }
     }
 
     async updateUser(id: number, user: Partial<UserDomain>): Promise<boolean> {
         try {
-            const existingUser = await this.userRepository.findOne({ where: { id_user: id } });
+            const repo = await this.getRepository();
+            const existingUser = await repo.findOne({ where: { id_user: id } });
             if (!existingUser) return false;
 
-            // Solo actualizamos los campos que se proporcionan
             Object.assign(existingUser, {
                 name_user: user.name ?? existingUser.name_user,
                 email_user: user.email ?? existingUser.email_user,
@@ -59,53 +60,60 @@ export class UserAdapter implements UserPort {
                 role_id: user.roleId ?? existingUser.role_id,
             });
 
-            await this.userRepository.save(existingUser);
+            await repo.save(existingUser);
             return true;
         } catch (error) {
             console.error("Error updating user:", error);
-            throw new Error("Failed to update user");
+            throw error;
         }
     }
 
     async deleteUser(id: number): Promise<boolean> {
         try {
-            const existingUser = await this.userRepository.findOne({ where: { id_user: id } });
+            const repo = await this.getRepository();
+            const existingUser = await repo.findOne({ where: { id_user: id } });
             if (!existingUser) return false;
-            // Actualiza solo el status a 0 baja
+
             Object.assign(existingUser, { status_user: 0 });
-            await this.userRepository.save(existingUser);
+            await repo.save(existingUser);
             return true;
         } catch (error) {
-            console.error("Error fetching user by ID:", error);
-            throw new Error("Failed to fetch user by ID");
+            console.error("Error deleting user:", error);
+            throw error;
         }
     }
-    
+
     async getUserById(id: number): Promise<User | null> {
         try {
-            const user = await this.userRepository.findOne({ where: { id_user: id } });
+            const repo = await this.getRepository();
+            const user = await repo.findOne({ where: { id_user: id } });
             return user ? this.toDomain(user) : null;
         } catch (error) {
             console.error("Error fetching user by ID:", error);
-            throw new Error("Failed to fetch user by ID");
+            throw error;
         }
     }
 
     async getUserByEmail(email: string): Promise<User | null> {
-        const user = await this.userRepository.findOne({ where: { email_user: email } });
-        if (!user) return null;
-
-        return this.toDomain(user);
+        try {
+            const repo = await this.getRepository();
+            const user = await repo.findOne({ where: { email_user: email } });
+            if (!user) return null;
+            return this.toDomain(user);
+        } catch (error) {
+            console.error("Error fetching user by email:", error);
+            throw error;
+        }
     }
 
     async getAllUsers(): Promise<User[]> {
         try {
-            const users = await this.userRepository.find({ where : { status_user: 1 } }); // Solo usuarios activos
-            return users.map(this.toDomain);
+            const repo = await this.getRepository();
+            const users = await repo.find({ where: { status_user: 1 } });
+            return users.map((user) => this.toDomain(user));
         } catch (error) {
             console.error("Error fetching all users:", error);
-            throw new Error("Failed to fetch all users");
+            throw error;
         }
     }
-
 }

@@ -290,3 +290,4 @@ Para el detalle de capas, flujos y patrón Adapter, consulta **[ARQUITECTURA.md]
 ## Equipo
 
 Proyecto grupal — Ingeniería Web I, UNIMINUTO.
+

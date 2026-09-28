@@ -8,7 +8,7 @@ import medalRoutes from '../routes/MedalRoutes';
 import recyclingRecordRoutes from '../routes/RecyclingRecordRoutes';
 import roleRoutes from '../routes/RoleRoutes';
 
-class App{
+class App {
     private app: express.Application;
 
     constructor() {
@@ -17,12 +17,35 @@ class App{
         this.routes();
     }
 
-    private middlewares():void{
-        this.app.use(cors());
+    private middlewares(): void {
+        const allowedOrigins = [
+            'https://ecopoint-psi.vercel.app',
+            'http://localhost:3000',
+            'http://localhost:5173',
+            'http://127.0.0.1:5500',
+            'http://localhost:5500'
+        ];
+
+        // Middleware CORS (ya maneja preflights de OPTIONS automáticamente)
+        this.app.use(cors({
+            origin: (origin, callback) => {
+                if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+                    callback(null, true);
+                } else {
+                    callback(null, true);
+                }
+            },
+            credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+        }));
+
+        // ❌ Eliminamos: this.app.options('*', cors() as any);
+
         this.app.use(express.json());
     }
 
-    private routes():void{
+    private routes(): void {
         this.app.use("/api/auth", authRoutes);
         this.app.use("/api", userRoutes);
         this.app.use("/api", recyclingPointRoutes);
@@ -32,7 +55,7 @@ class App{
         this.app.use("/api", roleRoutes);
     }
 
-    getApp(){
+    getApp(): express.Application {
         return this.app;
     }
 }

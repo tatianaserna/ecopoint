@@ -2,13 +2,13 @@ import { Repository } from "typeorm";
 import { Role as RoleDomain } from "../../domain/Role";
 import { Role as RoleEntity } from "../entities/Role";
 import { RolePort } from "../../domain/port/RolePort";
-import { AppDataSource } from "../config/data-base";
+import { AppDataSource, connectToDatabase } from "../config/data-base";
 
 export class RoleAdapter implements RolePort {
-    private roleRepository: Repository<RoleEntity>;
-
-    constructor() {
-        this.roleRepository = AppDataSource.getRepository(RoleEntity);
+    // Método asíncrono que garantiza la conexión antes de obtener el repositorio
+    private async getRepository(): Promise<Repository<RoleEntity>> {
+        await connectToDatabase();
+        return AppDataSource.getRepository(RoleEntity);
     }
 
     private toDomain(entity: RoleEntity): RoleDomain {
@@ -28,17 +28,19 @@ export class RoleAdapter implements RolePort {
 
     async createRole(role: Omit<RoleDomain, "id">): Promise<number> {
         try {
-            const saved = await this.roleRepository.save(this.toEntity(role));
+            const repo = await this.getRepository();
+            const saved = await repo.save(this.toEntity(role));
             return saved.id_role;
         } catch (error) {
             console.error("Error creating role:", error);
-            throw new Error("Failed to create role");
+            throw error;
         }
     }
 
     async updateRole(id: number, role: Partial<RoleDomain>): Promise<boolean> {
         try {
-            const existing = await this.roleRepository.findOne({ where: { id_role: id } });
+            const repo = await this.getRepository();
+            const existing = await repo.findOne({ where: { id_role: id } });
             if (!existing) return false;
 
             Object.assign(existing, {
@@ -46,39 +48,58 @@ export class RoleAdapter implements RolePort {
                 status_role: role.status ?? existing.status_role,
             });
 
-            await this.roleRepository.save(existing);
+            await repo.save(existing);
             return true;
         } catch (error) {
             console.error("Error updating role:", error);
-            throw new Error("Failed to update role");
+            throw error;
         }
     }
 
     async deleteRole(id: number): Promise<boolean> {
         try {
-            const existing = await this.roleRepository.findOne({ where: { id_role: id } });
+            const repo = await this.getRepository();
+            const existing = await repo.findOne({ where: { id_role: id } });
             if (!existing) return false;
             Object.assign(existing, { status_role: 0 });
-            await this.roleRepository.save(existing);
+            await repo.save(existing);
             return true;
         } catch (error) {
             console.error("Error deleting role:", error);
-            throw new Error("Failed to delete role");
+            throw error;
         }
     }
 
     async getRoleById(id: number): Promise<RoleDomain | null> {
-        const role = await this.roleRepository.findOne({ where: { id_role: id } });
-        return role ? this.toDomain(role) : null;
+        try {
+            const repo = await this.getRepository();
+            const role = await repo.findOne({ where: { id_role: id } });
+            return role ? this.toDomain(role) : null;
+        } catch (error) {
+            console.error("Error fetching role by ID:", error);
+            throw error;
+        }
     }
 
     async getRoleByName(name: string): Promise<RoleDomain | null> {
-        const role = await this.roleRepository.findOne({ where: { name_role: name } });
-        return role ? this.toDomain(role) : null;
+        try {
+            const repo = await this.getRepository();
+            const role = await repo.findOne({ where: { name_role: name } });
+            return role ? this.toDomain(role) : null;
+        } catch (error) {
+            console.error("Error fetching role by name:", error);
+            throw error;
+        }
     }
 
     async getAllRoles(): Promise<RoleDomain[]> {
-        const roles = await this.roleRepository.find({ where: { status_role: 1 } });
-        return roles.map((r) => this.toDomain(r));
+        try {
+            const repo = await this.getRepository();
+            const roles = await repo.find({ where: { status_role: 1 } });
+            return roles.map((r) => this.toDomain(r));
+        } catch (error) {
+            console.error("Error fetching all roles:", error);
+            throw error;
+        }
     }
 }
