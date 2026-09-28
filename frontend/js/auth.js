@@ -27,6 +27,7 @@ function updateAuthUI() {
 
     const loggedIn = isLoggedIn();
     syncRewardsAuthUI();
+    syncAuthenticatedMobileFeatures();
 
     if (loggedIn) {
         authBtn.textContent = 'Cerrar sesión';
@@ -43,6 +44,17 @@ function updateAuthUI() {
         if (authPanel) authPanel.hidden = false;
         if (profilePanel) profilePanel.hidden = true;
     }
+}
+
+function syncAuthenticatedMobileFeatures() {
+    const isMobile = typeof isMobileDevice === 'function' && isMobileDevice();
+    const dashboard = document.getElementById('auth-dashboard');
+    const mobilePointSection = document.querySelector('#auth-dashboard .mobile-only-section');
+    const evidenceSection = document.getElementById('evidencia');
+
+    if (dashboard) dashboard.hidden = !isLoggedIn();
+    if (mobilePointSection) mobilePointSection.hidden = !isLoggedIn() || !isMobile;
+    if (evidenceSection) evidenceSection.hidden = !isLoggedIn() || !isMobile;
 }
 
 async function loadProfile() {
@@ -203,4 +215,5 @@ function initAuth() {
     initRegisterForm();
     initAuthButton();
     updateAuthUI();
+    window.addEventListener('resize', syncAuthenticatedMobileFeatures);
 }
