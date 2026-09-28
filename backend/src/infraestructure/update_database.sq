@@ -1,0 +1,4 @@
+-- Agregar de forma segura las columnas para la app móvil sin afectar los datos existentes de la web
+ALTER TABLE recycling_points 
+ADD COLUMN IF NOT EXISTS image_url TEXT NULL,
+ADD COLUMN IF NOT EXISTS user_id INT NULL;
