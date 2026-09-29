@@ -1,13 +1,13 @@
 {
   "name": "EcoPoint - Plataforma de Reciclaje",
   "short_name": "EcoPoint",
-  "start_url": "/proyecto ecopoint.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2e7d32",
   "icons": [
     {
-      "src": "./assets/img/reciclaje_logo.png",
+      "src": "/assets/img/reciclaje_logo.png",
       "sizes": "228x221",
       "type": "image/png",
       "purpose": "any"
